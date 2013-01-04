@@ -5,8 +5,7 @@ module OmniAuth
     class Nuvo < OmniAuth::Strategies::OAuth2
       option :client_options, {
         :site => 'https://api.xnuvo.com',
-        :authorize_path => '/login/oauth/authorize',
-        :token_path => '/login/oauth/access_token'
+        :authorize_path => '/oauth/authorize'
       }
 
       uid { raw_info['id'].to_s }
@@ -21,13 +20,8 @@ module OmniAuth
         }
       end
 
-      extra do
-        { :raw_info => raw_info }
-      end
-
       def raw_info
-        access_token.options[:mode] = :query
-        @raw_info ||= access_token.get('/user').parsed
+        @raw_info ||= access_token.get('/api/v2/users/me.json').parsed
       end
     end
   end
