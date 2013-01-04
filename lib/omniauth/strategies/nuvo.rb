@@ -1,27 +1,23 @@
-require 'omniauth-oauth'
-require 'multi_json'
+require 'omniauth-oauth2'
 
 module OmniAuth
   module Strategies
-    class Nuvo < OmniAuth::Strategies::OAuth
-      option :name, 'nuvo'
-      option :client_options, {:authorize_path => '/oauth/authenticate',
-                               :site => 'https://api.xnuvo.com',
-                               :proxy => ENV['http_proxy'] ? URI(ENV['http_proxy']) : nil}
+    class Nuvo < OmniAuth::Strategies::OAuth2
+      option :client_options, {
+        :site => 'https://api.xnuvo.com',
+        :authorize_path => '/login/oauth/authorize',
+        :token_path => '/login/oauth/access_token'
+      }
 
-      uid { access_token.params[:user_id] }
+      uid { raw_info['id'].to_s }
 
       info do
         {
-          :nickname => raw_info['screen_name'],
+          :first_name => raw_info['first_name'],
+          :last_name => raw_info['last_name'],
+          :email => raw_info['email'],
           :name => raw_info['name'],
-          :location => raw_info['location'],
-          :image => options[:secure_image_url] ? raw_info['profile_image_url_https'] : raw_info['profile_image_url'],
-          :description => raw_info['description'],
-          :urls => {
-            'Website' => raw_info['url'],
-            'Nuvo' => 'http://xnuvo.com/' + raw_info['screen_name'],
-          }
+          :image => raw_info['profile_image_url']
         }
       end
 
@@ -30,39 +26,9 @@ module OmniAuth
       end
 
       def raw_info
-        @raw_info ||= MultiJson.load(access_token.get('/1.1/account/verify_credentials.json').body)
-      rescue ::Errno::ETIMEDOUT
-        raise ::Timeout::Error
+        access_token.options[:mode] = :query
+        @raw_info ||= access_token.get('/user').parsed
       end
-
-      alias :old_request_phase :request_phase
-
-      def request_phase
-        force_login = session['omniauth.params'] ? session['omniauth.params']['force_login'] : nil
-        screen_name = session['omniauth.params'] ? session['omniauth.params']['screen_name'] : nil
-        x_auth_access_type = session['omniauth.params'] ? session['omniauth.params']['x_auth_access_type'] : nil
-        if force_login && !force_login.empty?
-          options[:authorize_params] ||= {}
-          options[:authorize_params].merge!(:force_login => 'true')
-        end
-        if screen_name && !screen_name.empty?
-          options[:authorize_params] ||= {}
-          options[:authorize_params].merge!(:force_login => 'true', :screen_name => screen_name)
-        end
-        if x_auth_access_type
-          options[:request_params] || {}
-          options[:request_params].merge!(:x_auth_access_type => x_auth_access_type)
-        end
-
-        if session['omniauth.params'] && session['omniauth.params']["use_authorize"] == "true"
-          options.client_options.authorize_path = '/oauth/authorize'
-        else
-          options.client_options.authorize_path = '/oauth/authenticate'
-        end
-
-        old_request_phase
-      end
-
     end
   end
 end
