@@ -11,13 +11,21 @@ module OmniAuth
       uid { raw_info['id'].to_s }
 
       info do
-        {
+        result = {
           :first_name => raw_info['first_name'],
           :last_name => raw_info['last_name'],
           :email => raw_info['email'],
-          :name => raw_info['name'],
-          :image => raw_info['profile_image_url']
+          :image => raw_info['profile_image_url'],
         }
+        result[:locale] = {}
+        raw_info['locale'].each do |locale, locale_info|
+          result[:locale][locale] = {
+            :first_name => locale_info['first_name'],
+            :last_name => locale_info['last_name'],
+            :name => locale_info['name'],
+          }
+        end
+        result
       end
 
       def raw_info
